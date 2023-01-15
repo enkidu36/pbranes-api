@@ -20,3 +20,10 @@ Reference for markdown and markdown best practices.
 [Deps and CLI Guide](https://clojure.org/guides/deps_and_cli)
 <br>
 Clojure command line tools
+
+
+# Notes
+
+[.gitignore - Not working](https://stackoverflow.com/questions/25436312/gitignore-not-working )
+<br>
+
