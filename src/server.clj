@@ -1,5 +1,5 @@
 (ns server
- (:require [reitit.ring :as ring]
+  (:require [reitit.ring :as ring]
             [reitit.coercion.spec]
             [reitit.swagger :as swagger]
             [reitit.swagger-ui :as swagger-ui]
@@ -9,97 +9,77 @@
             [reitit.ring.middleware.exception :as exception]
             [reitit.ring.middleware.multipart :as multipart]
             [reitit.ring.middleware.parameters :as parameters]
-            ;; Uncomment to use
-            ; [reitit.ring.middleware.dev :as dev]
+            ;; Uncomment to use 
+            ;;[reitit.ring.middleware.dev :as dev]
             [ring.adapter.jetty :as jetty]
+            [ring.util.response :as r]
             [muuntaja.core :as m]
-            [clojure.java.io :as io]))
+            [ring.middleware.cors :refer [wrap-cors]]))
+
+(defn testing-handler [_]
+  (prn "testing too")
+  (r/response "testing too"))
 
 (def app
   (ring/ring-handler
-    (ring/router
-      [["/swagger.json"
-        {:get {:no-doc true
-               :swagger {:info {:title "my-api"
-                                :description "with reitit-ring"}}
-               :handler (swagger/create-swagger-handler)}}]
+   (ring/router
+    [["/swagger.json"
+      {:get {:no-doc true
+             :swagger {:info {:title "pbranes-api"
+                              :description "reitit ring with swagger, spec"}}
+             :handler (swagger/create-swagger-handler)}}]
 
-       ["/files"
-        {:swagger {:tags ["files"]}}
+     ["/testing"
+      {:middleware [#(wrap-cors % :access-control-allow-origin [#".*"]
+                                :access-control-allow-methods [:get])]
+       :get {:summary "testing"
+             :responses {200 {:body string?}}
+             :handler  testing-handler}}]]
 
-        ["/upload"
-         {:post {:summary "upload a file"
-                 :parameters {:multipart {:file multipart/temp-file-part}}
-                 :responses {200 {:body {:name string?, :size int?}}}
-                 :handler (fn [{{{:keys [file]} :multipart} :parameters}]
-                            {:status 200
-                             :body {:name (:filename file)
-                                    :size (:size file)}})}}]
-
-        ["/download"
-         {:get {:summary "downloads a file"
-                :swagger {:produces ["image/png"]}
-                :handler (fn [_]
-                           {:status 200
-                            :headers {"Content-Type" "image/png"}
-                            :body (-> "reitit.png"
-                                      (io/resource)
-                                      (io/input-stream))})}}]]
-
-       ["/math"
-        {:swagger {:tags ["math"]}}
-
-        ["/plus"
-         {:get {:summary "plus with spec query parameters"
-                :parameters {:query {:x int?
-                                     :y int?}}
-                :responses {200 {:body {:total int?}}}
-                :handler (fn [{{{:keys [x y]} :query} :parameters}]
-                           {:status 200
-                            :body {:total (+ x y)}})}
-          :post {:summary "plus with spec body parameters"
-                 :parameters {:body {:x int?
-                                     :y int?}}
-                 :responses {200 {:body {:total int?}}}
-                 :handler (fn [{{{:keys [x y]} :body} :parameters}]
-                            {:status 200
-                             :body {:total (+ x y)}})}}]]]
-
-      {;;:reitit.middleware/transform dev/print-request-diffs ;; pretty diffs
+    {;;:reitit.middleware/transform dev/print-request-diffs ;; pretty diffs
        ;;:validate spec/validate ;; enable spec validation for route data
        ;;:reitit.spec/wrap spell/closed ;; strict top-level validation
-       :exception pretty/exception
-       :data {:coercion reitit.coercion.spec/coercion
-              :muuntaja m/instance
-              :middleware [;; swagger feature
-                           swagger/swagger-feature
+     :exception pretty/exception
+     :data {:coercion reitit.coercion.spec/coercion
+            :muuntaja m/instance
+            :middleware [;; swagger feature
+                         swagger/swagger-feature
                            ;; query-params & form-params
-                           parameters/parameters-middleware
+                         parameters/parameters-middleware
                            ;; content-negotiation
-                           muuntaja/format-negotiate-middleware
+                         muuntaja/format-negotiate-middleware
                            ;; encoding response body
-                           muuntaja/format-response-middleware
+                         muuntaja/format-response-middleware
                            ;; exception handling
-                           (exception/create-exception-middleware
-                             {::exception/default (partial exception/wrap-log-to-console exception/default-handler)})
+                         (exception/create-exception-middleware
+                          {::exception/default (partial exception/wrap-log-to-console exception/default-handler)})
                            ;; decoding request body
-                           muuntaja/format-request-middleware
+                         muuntaja/format-request-middleware
                            ;; coercing response bodys
-                           coercion/coerce-response-middleware
+                         coercion/coerce-response-middleware
                            ;; coercing request parameters
-                           coercion/coerce-request-middleware
+                         coercion/coerce-request-middleware
                            ;; multipart
-                           multipart/multipart-middleware]}})
-    (ring/routes
-      (swagger-ui/create-swagger-ui-handler
-        {:path "/"
-         :config {:validatorUrl nil
-                  :operationsSorter "alpha"}})
-      (ring/create-default-handler))))
+                         multipart/multipart-middleware]}})
+   (ring/routes
+    (swagger-ui/create-swagger-ui-handler
+     {:path "/"
+      :config {:validatorUrl nil
+               :operationsSorter "alpha"}})
+    (ring/create-default-handler))))
+
+(defonce server  (jetty/run-jetty #'app
+                                  {:port 3000, :join? false}))
 
 (defn start []
-  (jetty/run-jetty #'app {:port 3000, :join? false})
+  (.start server)
   (println "server running in port 3000"))
 
+(defn stop []
+  (.stop server))
+
 (comment
-  (start))
+  (start)
+  (stop)
+
+  (stop))
