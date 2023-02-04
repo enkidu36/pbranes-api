@@ -3,21 +3,14 @@
            (com.cronutils.parser CronParser)
            (com.cronutils.model CronType)
            (com.cronutils.descriptor CronDescriptor)
-           (java.util Locale))
-  (:require [cronstar.parser :as p]))
+           (java.util Locale)))
 
-
-(def expression "0 23 * ? * 1-5 *")
-
-
-(defn cron->human-time [type locale expression]
-  (let [cronDefinition (CronDefinitionBuilder/instanceDefinitionFor type)
+(defn cron->human-time [cronType locale expression]
+  (let [cronDefinition (CronDefinitionBuilder/instanceDefinitionFor cronType)
         parser (CronParser. cronDefinition)
         descriptor (CronDescriptor/instance locale)]
     (.describe descriptor (.parse parser expression))))
 
-(prn ( cron->human-time CronType/QUARTZ Locale/US expression))
-
 (comment
-
-  (p/parse [:minute :hour] "*/2 1-10/3"))
+  (def expression "0 23 * ? * 1-5 *")
+  (cron->human-time CronType/QUARTZ Locale/US expression))
