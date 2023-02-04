@@ -20,6 +20,9 @@
   (prn "testing too")
   (r/response "testing too"))
 
+(defn cron-converter [{{{:keys [expression]} :query} :parameters}]
+  (r/response expression))
+
 (def app
   (ring/ring-handler
    (ring/router
@@ -28,6 +31,15 @@
              :swagger {:info {:title "pbranes-api"
                               :description "reitit ring with swagger, spec"}}
              :handler (swagger/create-swagger-handler)}}]
+     
+     ["/cron"
+      ["/converter"
+       {:middleware [#(wrap-cors % :access-control-allow-origin [#".*"]
+                                 :access-control-allow-methods [:get])]
+        :get {:summary "Cron to text converter"
+              :parameters {:query {:expression string?}}
+              :responses {200 {:body string?}}
+              :handler cron-converter}}]]
 
      ["/testing"
       {:middleware [#(wrap-cors % :access-control-allow-origin [#".*"]
